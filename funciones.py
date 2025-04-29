@@ -34,19 +34,19 @@ def calcular_coste_por_enlace(flujo_por_enlace):
 def calcular_coste_total_por_path(commodities, flujo_por_enlace):
     costes_path = {}
     for commodity in commodities:
-        print(f"\nCostes por path para {commodity.name}:")
+        #print(f"\nCostes por path para {commodity.name}:")
         for i, path in enumerate(commodity.paths, start=1):
             enlaces_path = [(e.source, e.target) for e in path.enlaces]
-            print(f"\nPath {i}: Enlaces = {enlaces_path}")
+            #print(f"\nPath {i}: Enlaces = {enlaces_path}")
             
             coste_path = 0.0
             for enlace in path.enlaces:
                 flujo = flujo_por_enlace[enlace]
                 coste_enlace = f_prima(enlace.capacity, flujo)
-                print(f" - Enlace ({enlace.source}->{enlace.target}): capacidad={enlace.capacity}, flujo={flujo:.4f}, coste={coste_enlace:.4f}")
+                #print(f" - Enlace ({enlace.source}->{enlace.target}): capacidad={enlace.capacity}, flujo={flujo:.4f}, coste={coste_enlace:.4f}")
                 coste_path += coste_enlace
 
-            print(f" → Coste total del Path {i} = {coste_path:.4f}")
+            #print(f" → Coste total del Path {i} = {coste_path:.4f}")
             costes_path[(commodity, i)] = coste_path
     return costes_path
 
@@ -91,19 +91,19 @@ def calcular_H_kp(path_actual, mejor_path, flujo_por_enlace_anterior):
     enlaces_mejor = set(mejor_path.enlaces)
     L_kp = enlaces_actual.symmetric_difference(enlaces_mejor)
     
-    print("\n--- Debug H_kp ---")
-    print(f"Enlaces Path actual: [{', '.join(f'({e.source}->{e.target})' for e in enlaces_actual)}]")
-    print(f"Enlaces Mejor path: [{', '.join(f'({e.source}->{e.target})' for e in enlaces_mejor)}]")
-    print(f"Diferencia simétrica (L_kp): [{', '.join(f'({e.source}->{e.target})' for e in L_kp)}]")
+    #print("\n--- Debug H_kp ---")
+    #print(f"Enlaces Path actual: [{', '.join(f'({e.source}->{e.target})' for e in enlaces_actual)}]")
+    #print(f"Enlaces Mejor path: [{', '.join(f'({e.source}->{e.target})' for e in enlaces_mejor)}]")
+    #print(f"Diferencia simétrica (L_kp): [{', '.join(f'({e.source}->{e.target})' for e in L_kp)}]")
     
     H_kp = 0.0
     for enlace in L_kp:
         flujo = flujo_por_enlace_anterior.get(enlace, 0.0)
         f_dp = f_double_prima(enlace, flujo)
-        print(f"Enlace ({enlace.source}->{enlace.target}): capacidad={enlace.capacity}, flujo={flujo:.4f}, f''={f_dp:.6f}")
+        #print(f"Enlace ({enlace.source}->{enlace.target}): capacidad={enlace.capacity}, flujo={flujo:.4f}, f''={f_dp:.6f}")
         H_kp += f_dp
     
-    print(f"H_kp final: {H_kp:.6f}\n")
+    #print(f"H_kp final: {H_kp:.6f}\n")
     return H_kp
 
 
@@ -193,6 +193,5 @@ def funcion_principal(commodities):
         print("\nPath de menor coste para cada commodity:")
         for commodity, path_id in shortest_paths.items():
             print(f"{commodity.name}: Path {path_id} con coste {costes_path[(commodity, path_id)]:.4f}")
-        print("\n-----------------------------------")
 
     return iteraciones
