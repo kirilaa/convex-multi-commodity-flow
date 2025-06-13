@@ -74,7 +74,7 @@ def calculo_del_trafico_para_la_siguiente_iteracion(
     d_kp: float, 
     d_kbeta: float
 ) -> float:
-    termino_adaptacion = x_kp_actual - (1 / H_kp) * (d_kp - d_kbeta)
+    termino_adaptacion = x_kp_actual - (0.001 / H_kp) * (d_kp - d_kbeta)
     termino_positivo = max(0.0, termino_adaptacion)
     nuevo_trafico = termino_positivo
     return nuevo_trafico
@@ -114,7 +114,7 @@ def funcion_principal(commodities):
         "shortest_paths": []
     }
 
-    for i in range(3):
+    for i in range(200):    # Número de iteraciones
         print(f"\n{'='*40}\nIteración {i}:\n{'='*40}")
 
         if i == 0:
