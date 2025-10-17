@@ -85,21 +85,46 @@ def generar_red_acceso_agregacion(
         enlaces.extend(ring_enlaces)
 
     # 2. Conectar anillos de acceso a capa de agregación
-    # Estrategia: cada anillo se conecta a connections_per_ring nodos de agregación
-    # Usamos un nodo "gateway" de cada anillo (el nodo 0 del anillo)
+    # Estrategia: cada anillo tiene 2 gateway nodes para redundancia
+    # Gateway 1: nodo 0 del anillo
+    # Gateway 2: nodo nodes_per_ring//2 del anillo (punto medio)
+
+    gateway_info = []  # Track gateway nodes for statistics
 
     for ring_id in range(num_access_rings):
-        gateway_node = ring_id * nodes_per_ring  # Primer nodo del anillo
+        gateway_node_1 = ring_id * nodes_per_ring  # Primer nodo del anillo
+        gateway_node_2 = ring_id * nodes_per_ring + (nodes_per_ring // 2)  # Punto medio
 
-        # Conectar a connections_per_ring nodos de agregación
-        # Distribuimos las conexiones uniformemente
+        # Gateway 1: conectar a connections_per_ring nodos de agregación
+        gw1_agg_nodes = []
         for i in range(connections_per_ring):
-            agg_idx = (ring_id * connections_per_ring + i) % num_agg_nodes
+            agg_idx = (ring_id * connections_per_ring * 2 + i) % num_agg_nodes
             agg_node = agg_nodes[agg_idx]
+            gw1_agg_nodes.append(agg_node)
 
-            # Enlace bidireccional: access gateway <-> aggregation
-            enlaces.append(Enlace(gateway_node, agg_node, uplink_capacity))
-            enlaces.append(Enlace(agg_node, gateway_node, uplink_capacity))
+            # Enlace bidireccional: gateway 1 <-> aggregation
+            enlaces.append(Enlace(gateway_node_1, agg_node, uplink_capacity))
+            enlaces.append(Enlace(agg_node, gateway_node_1, uplink_capacity))
+
+        # Gateway 2: conectar a connections_per_ring nodos DIFERENTES de agregación
+        gw2_agg_nodes = []
+        for i in range(connections_per_ring):
+            # Offset para asegurar que sean diferentes nodos de agregación
+            agg_idx = (ring_id * connections_per_ring * 2 + connections_per_ring + i) % num_agg_nodes
+            agg_node = agg_nodes[agg_idx]
+            gw2_agg_nodes.append(agg_node)
+
+            # Enlace bidireccional: gateway 2 <-> aggregation
+            enlaces.append(Enlace(gateway_node_2, agg_node, uplink_capacity))
+            enlaces.append(Enlace(agg_node, gateway_node_2, uplink_capacity))
+
+        gateway_info.append({
+            'ring_id': ring_id,
+            'gateway_1': gateway_node_1,
+            'gateway_2': gateway_node_2,
+            'gw1_agg_nodes': gw1_agg_nodes,
+            'gw2_agg_nodes': gw2_agg_nodes
+        })
 
     # 3. Crear capa de agregación (full mesh o anillo)
     # Opción: full mesh entre nodos de agregación
@@ -118,7 +143,9 @@ def generar_red_acceso_agregacion(
         'num_enlaces': len(enlaces),
         'access_capacity': access_capacity,
         'uplink_capacity': uplink_capacity,
-        'agg_capacity': agg_capacity
+        'agg_capacity': agg_capacity,
+        'gateway_info': gateway_info,  # Dual-gateway information
+        'connections_per_gateway': connections_per_ring
     }
 
     return enlaces, info

@@ -76,11 +76,11 @@ def main():
 
     # Calcular distribución de enlaces
     num_enlaces_acceso = num_access_rings * nodes_per_ring * 2  # bidireccional
-    num_enlaces_uplink = num_access_rings * 2 * 2  # 2 conexiones por anillo, bidireccional
+    num_enlaces_uplink = num_access_rings * 2 * 2 * 2  # 2 gateways × 2 conexiones × 2 direcciones
     num_enlaces_agg = info['num_enlaces'] - num_enlaces_acceso - num_enlaces_uplink
 
     print(f"  - Enlaces en anillos de acceso: {num_enlaces_acceso}")
-    print(f"  - Enlaces uplink (access→agg): {num_enlaces_uplink}")
+    print(f"  - Enlaces uplink (2 gateways): {num_enlaces_uplink}")
     print(f"  - Enlaces en agregación: {num_enlaces_agg}")
 
     # Generar commodities estratégicos
@@ -221,6 +221,78 @@ def main():
                 print(f"Enlaces de agregación activos: {len(utilizaciones_agg)}/{len(enlaces_agg)}")
                 print(f"Utilización promedio: {avg_util*100:.1f}%")
                 print(f"Utilización máxima: {max(utilizaciones_agg)*100:.1f}%")
+
+        # Análisis de Gateways (Dual-Gateway)
+        print("\n--- ANÁLISIS DE GATEWAYS (Dual-Gateway) ---")
+        if 'gateway_info' in info:
+            gateway_stats = []
+
+            for gw_info in info['gateway_info']:
+                ring_id = gw_info['ring_id']
+                gw1_node = gw_info['gateway_1']
+                gw2_node = gw_info['gateway_2']
+
+                # Calcular flujo a través de cada gateway
+                gw1_flujo = 0.0
+                gw2_flujo = 0.0
+
+                for enlace, flujo in ultima_iteracion.items():
+                    # Gateway 1: enlaces salientes desde gw1_node
+                    if enlace.source == gw1_node and enlace.target >= info['total_access_nodes']:
+                        gw1_flujo += flujo
+                    # Gateway 2: enlaces salientes desde gw2_node
+                    if enlace.source == gw2_node and enlace.target >= info['total_access_nodes']:
+                        gw2_flujo += flujo
+
+                # Capacidad total de cada gateway
+                gw_capacity = info['connections_per_gateway'] * uplink_capacity
+
+                gw1_util = gw1_flujo / gw_capacity if gw_capacity > 0 else 0
+                gw2_util = gw2_flujo / gw_capacity if gw_capacity > 0 else 0
+
+                # Load balance ratio
+                if gw2_util > 0:
+                    balance_ratio = gw1_util / gw2_util
+                else:
+                    balance_ratio = float('inf') if gw1_util > 0 else 1.0
+
+                gateway_stats.append({
+                    'ring_id': ring_id,
+                    'gw1_flujo': gw1_flujo,
+                    'gw2_flujo': gw2_flujo,
+                    'gw1_util': gw1_util,
+                    'gw2_util': gw2_util,
+                    'balance_ratio': balance_ratio,
+                    'gw_capacity': gw_capacity
+                })
+
+            # Estadísticas generales
+            gw1_utils = [gs['gw1_util'] for gs in gateway_stats]
+            gw2_utils = [gs['gw2_util'] for gs in gateway_stats]
+            balance_ratios = [gs['balance_ratio'] for gs in gateway_stats if gs['balance_ratio'] != float('inf')]
+
+            avg_gw1_util = sum(gw1_utils) / len(gw1_utils) if gw1_utils else 0
+            avg_gw2_util = sum(gw2_utils) / len(gw2_utils) if gw2_utils else 0
+            avg_balance = sum(balance_ratios) / len(balance_ratios) if balance_ratios else 0
+
+            balanced_rings = sum(1 for gs in gateway_stats if 0.8 <= gs['balance_ratio'] <= 1.25)
+
+            print(f"Total anillos con dual-gateway: {len(gateway_stats)}")
+            print(f"Utilización promedio Gateway 1: {avg_gw1_util*100:.1f}%")
+            print(f"Utilización promedio Gateway 2: {avg_gw2_util*100:.1f}%")
+            print(f"Balance promedio (GW1/GW2): {avg_balance:.2f}")
+            print(f"Anillos con carga balanceada (ratio 0.8-1.25): {balanced_rings}/{len(gateway_stats)}")
+
+            # Mostrar top 5 anillos con mayor desbalance
+            gateway_stats_sorted = sorted(gateway_stats, key=lambda x: abs(x['balance_ratio'] - 1.0), reverse=True)
+            print(f"\nTop 5 anillos con mayor desbalance de carga:")
+            for i, gs in enumerate(gateway_stats_sorted[:5], 1):
+                print(f"  {i}. Ring {gs['ring_id']}:")
+                print(f"     GW1 (nodo {info['gateway_info'][gs['ring_id']]['gateway_1']}): "
+                      f"{gs['gw1_flujo']:.2f}/{gs['gw_capacity']:.2f} ({gs['gw1_util']*100:.1f}%)")
+                print(f"     GW2 (nodo {info['gateway_info'][gs['ring_id']]['gateway_2']}): "
+                      f"{gs['gw2_flujo']:.2f}/{gs['gw_capacity']:.2f} ({gs['gw2_util']*100:.1f}%)")
+                print(f"     Balance ratio: {gs['balance_ratio']:.2f}")
 
         # Verificar flow conservation
         print(f"\n--- CONSERVACIÓN DE FLUJO ---")
